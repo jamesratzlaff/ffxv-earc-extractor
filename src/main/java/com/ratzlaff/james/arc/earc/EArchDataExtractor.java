@@ -136,6 +136,13 @@ public class EArchDataExtractor {
 		return result;
 	}
 	
+	/**
+	 * SPECIAL NOTE!!!: It turns out that the maximum deflated size can only be 131072 bytes,there for a filePointer may possibly have multiple zip entries
+	 * @param mbb
+	 * @param dataBlockLength
+	 * @param expectedDecompressedLength
+	 * @return
+	 */
 	private static Boolean isZipped(ByteBuffer mbb, int dataBlockLength, int expectedDecompressedLength) {
 		Boolean zipped = false;
 		if (mbb != null) {
@@ -207,8 +214,10 @@ public class EArchDataExtractor {
 		
 		
 		byte[] reso = new byte[pointer.getExtractedSize()];
+		ByteArrayInputStream asByteArrayInputStream = toByteArrayInputStream(pointer);
+
 		if(isZipped(pointer)) {
-			InflaterInputStream zis = new InflaterInputStream(toByteArrayInputStream(pointer), new Inflater(),pointer.getLength());
+			InflaterInputStream zis = new InflaterInputStream(toByteArrayInputStream(pointer), new Inflater(),0x02000);
 			try {
 				int bytesRead=0;
 				int totalBytesRead=0;

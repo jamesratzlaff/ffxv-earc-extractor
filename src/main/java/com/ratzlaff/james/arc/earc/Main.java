@@ -1,9 +1,8 @@
 package com.ratzlaff.james.arc.earc;
 
-import java.nio.channels.FileChannel;
+import java.lang.System.Logger;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 
 import com.ratzlaff.james.Earchive;
@@ -14,18 +13,23 @@ import com.ratzlaff.james.Earchive;
  *
  */
 public class Main {
-
+	private static final transient Logger LOG = Logging.getLogger(Main.class);
 	
 	public static void main(String[] args) throws Exception {
+		
 		if(args.length<1) {
 			printUsage();
 		} else {
+			
 			String inputFile = args[0];
 			Earchive earch = Earchive.create(inputFile);
-			print(earch);
-			String outputDir = args.length>1?args[1]:"./";
+//			print(earch);
+//			String outputDir = args.length>1?args[1]:"./";
+			FileMetadataPointers pntr=earch.getFilePointersAt(0);
+			pntr.getDeflateSegments();
+			System.out.println(pntr);
 			
-			earch.getFilePointersAt(0).extractTo(Paths.get(outputDir));
+//			earch.getFilePointersAt(0).extractTo(Paths.get(outputDir));
 			
 			
 			//extractAllFiles(earch, outputDir);
@@ -115,11 +119,6 @@ public class Main {
 		return strs;
 	}
 	
-	public static String getFileStr() {
-		String str;
-		str = FileMetadataPointers.readString("C:\\Program Files\\SquareEnix\\FINAL FANTASY XV BENCHMARK\\datas\\character\\ve\\ve00\\script\\ve00_ride_load.earc", 1176);
-		System.out.println(str);
-		return str;
-	}
+
 	
 }
