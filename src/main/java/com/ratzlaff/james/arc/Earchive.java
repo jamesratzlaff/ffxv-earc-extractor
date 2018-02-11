@@ -1,4 +1,4 @@
-package com.ratzlaff.james;
+package com.ratzlaff.james.arc;
 
 import java.io.Closeable;
 import java.io.IOException;

@@ -2,8 +2,6 @@ package com.ratzlaff.james.arc.earc;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -15,17 +13,22 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 
  * @author James Ratzlaff
  *
  */
-public class FileMetadataPointers {
-	private static final transient Logger LOG = Logging.getLogger(FileMetadataPointers.class);
+public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
+	private static final transient Logger LOG = LoggerFactory.getLogger(FileMetadataPointers.class);
 	// meta_data
 	// file_offset meta_data_offset name type desc
 	// 0x30 0x00 unknown? long (unknown)
@@ -161,34 +164,7 @@ public class FileMetadataPointers {
 		return result;
 	}
 
-	// private void initialize(ByteBuffer bb) {
-	// if(bb==null) {
-	//
-	// }
-	// if(bb!=null&&this.fileChannelSupplier==null) {
-	// accept(bb);
-	// } else if(bb==null&&this.fileChannelSupplier!=null) {
-	// bb=ByteBuffer.allocateDirect(40);
-	// }
-	// if(this.fileChannelSupplier!=null) {
-	// FileChannel fc = this.fileChannelSupplier.get();
-	// fc.read(bb);
-	// fc.read(dst);
-	// }
-	// }
-	//
-	//
-	// public void accept(ByteBuffer bb) {
-	// if(bb!=null) {
-	// this.checksum=bb.getLong();
-	// this.extractedSize=bb.getInt();
-	// this.length=bb.getInt();
-	// this.type=bb.getInt();
-	// this.dataUrlLocation=bb.getInt();
-	// this.dataLocation=bb.getLong();
-	// this.pathLocation=bb.getLong();
-	// }
-	// }
+
 
 	/**
 	 * 
@@ -196,7 +172,7 @@ public class FileMetadataPointers {
 	 *         {@link #getType() type} definitely seems to have something to do with
 	 *         this number
 	 */
-	public long getChecksum() {
+	public long getUnknown() {
 		return unknown;
 	}
 
@@ -473,7 +449,7 @@ public class FileMetadataPointers {
 				}
 				bb.flip();
 			} catch (IOException e) {
-				LOG.log(Level.ERROR, e.getLocalizedMessage(), e);
+				LOG.error(e.getLocalizedMessage(), e);
 			}
 		}
 		
@@ -507,23 +483,12 @@ public class FileMetadataPointers {
 					int len = getLength();
 					while(totalBytesSought<len) {
 						DeflateSegment df = new DeflateSegment(this);
-//						int segmentSize = df.getCompressedSize();
-//						int mod = segmentSize%Integer.BYTES;
-//						if(mod!=0) {
-//							mod=Integer.BYTES-mod;
-//						}
 						totalBytesSought+=(df.length());
 						this.deflateSegments.add(df);
-//						if(totalBytesSought<len) {
-//							long newPos = fileChannel.position()+(segmentSize+mod);
-//							fileChannel.position(newPos);
-//						} else {
-//							break;
-//						}
 					}
 					
 				}catch(IOException ioe) {
-					LOG.log(Level.ERROR, ioe.getLocalizedMessage(),ioe);
+					LOG.error(ioe.getLocalizedMessage(),ioe);
 				}
 				((ArrayList<DeflateSegment>) this.deflateSegments).trimToSize();
 			} else {
@@ -545,7 +510,7 @@ public class FileMetadataPointers {
 		ByteBuffer bb = getByteBuffer(fc, getDataLocation(), targetLen);
 		zipped = bb.remaining() == targetLen;
 		if (!zipped) {
-			LOG.log(Level.DEBUG, "Not zipped. Expected to read %d bytes but only read %d", targetLen, bb.remaining());
+			LOG.debug("Not zipped. Expected to read %d bytes but only read %d", targetLen, bb.remaining());
 		} else {
 			int compressedSize = bb.getInt();
 			int inflatedSize = bb.getInt();
@@ -556,11 +521,11 @@ public class FileMetadataPointers {
 			boolean secondByteIsCorrect = byteIsValidSecondInflateByte(secondByte);
 
 			if (!firstByteIsCorrect) {
-				LOG.log(Level.DEBUG, "The first inflate header byte is not correct. Expected %x but was given %x",
+				LOG.debug("The first inflate header byte is not correct. Expected %x but was given %x",
 						ZLIB_FIRST_MAGIC_VALUE, firstByte);
 			}
 			if (!secondByteIsCorrect) {
-				LOG.log(Level.DEBUG,
+				LOG.debug(
 						"The second inflate header byte is not correct. Expected %x, %x, %x, or %x but was given %x",
 						x01, x5A, x9C, xDA, secondByte);
 			}
@@ -592,18 +557,18 @@ public class FileMetadataPointers {
 			inflatedSizeIsValid = inflatedSizeIsValid(inflatedSize);
 			valid = inflatedSizeIsValid;
 			if (!valid) {
-				LOG.log(Level.DEBUG, "The 'inflatedSize' value %d, is not valid because it is greater than %d",
+				LOG.debug("The 'inflatedSize' value %d, is not valid because it is greater than %d",
 						inflatedSize, MAX_INFLATE_BUFFER_SIZE);
 			}
 		} else {
-			LOG.log(Level.DEBUG, "The 'compressedSize' value %d, is not valid because it is less than %d",
+			LOG.debug("The 'compressedSize' value %d, is not valid because it is less than %d",
 					compressedSize, MIN_COMPRESSED_SIZE);
 		}
 		if (valid) {
 			coherent = compressedSize < inflatedSize;
 			valid = coherent;
 			if (!valid) {
-				LOG.log(Level.DEBUG,
+				LOG.debug(
 						"The 'compressedSize' and 'inflateSize' are not coherent. Expected compressSize<=inflatedSize, but got %d and %d respectively",
 						compressedSize, inflatedSize);
 			}
@@ -633,6 +598,38 @@ public class FileMetadataPointers {
 		default:
 			return false;
 		}
+	}
+
+	
+	public static final class Comparators {
+		
+		public static final Comparator<FileMetadataPointers> checksum = (a,b)->{
+			return Comparator.comparingLong(FileMetadataPointers::getUnknown).compare(a, b);
+		};
+		
+		public static final Comparator<FileMetadataPointers> dataLocation = (a,b)->{
+			return Comparator.comparingLong(FileMetadataPointers::getDataLocation).compare(a, b);
+		};
+		public static final Comparator<FileMetadataPointers> type = (a,b)->{
+			return Comparator.comparingInt(FileMetadataPointers::getType).thenComparing(checksum).compare(a, b);
+		};
+		private static final Function<FileMetadataPointers,String> urlExrtactor = FileMetadataPointers::getDataUrl;
+		public static final Comparator<FileMetadataPointers> url= (a,b)->{
+			return Comparator.comparing(urlExrtactor).compare(a,b);
+		};
+		
+	}
+	
+	
+	
+	
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	 */
+	@Override
+	public int compareTo(FileMetadataPointers o) {
+		return Comparators.dataLocation.compare(this, o);
 	}
 
 }

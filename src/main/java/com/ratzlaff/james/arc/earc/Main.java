@@ -1,11 +1,16 @@
 package com.ratzlaff.james.arc.earc;
 
-import java.lang.System.Logger;
+
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
-import com.ratzlaff.james.Earchive;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.ratzlaff.james.arc.Earchive;
+import com.ratzlaff.james.util.io.HexPrinter;
 
 /**
  * 
@@ -13,7 +18,7 @@ import com.ratzlaff.james.Earchive;
  *
  */
 public class Main {
-	private static final transient Logger LOG = Logging.getLogger(Main.class);
+	private static final transient Logger LOG = LoggerFactory.getLogger(Main.class);
 	
 	public static void main(String[] args) throws Exception {
 		
@@ -26,8 +31,11 @@ public class Main {
 //			print(earch);
 //			String outputDir = args.length>1?args[1]:"./";
 			FileMetadataPointers pntr=earch.getFilePointersAt(0);
-			pntr.getDeflateSegments();
+			DeflateSegment d = pntr.getDeflateSegments().get(0);
+			ByteBuffer bb = d.getCompressedDataAsByteBuffer(null);
 			System.out.println(pntr);
+			HexPrinter.printAsHex(bb,(int)d.getAbsoluteDeflateDataOffset());
+			
 			
 //			earch.getFilePointersAt(0).extractTo(Paths.get(outputDir));
 			

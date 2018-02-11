@@ -4,8 +4,8 @@
  *
  */
 module com.ratzlaff.james.arc.earc {
-	exports com.ratzlaff.james;
+	requires org.slf4j;
+	exports com.ratzlaff.james.arc;
 	exports com.ratzlaff.james.arc.earc;
-
-	requires java.logging;
+	
 }
