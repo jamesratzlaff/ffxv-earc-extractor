@@ -2,6 +2,7 @@ package com.ratzlaff.james.arc.earc;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -456,6 +457,23 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 		return bb;
 	}
 
+	
+	public File write() {
+		try {
+			Files.createDirectories(getPath().getParent());
+			OutputStream os = Files.newOutputStream(getPath().resolve("./"), StandardOpenOption.CREATE_NEW,StandardOpenOption.APPEND);
+			List<DeflateSegment> segments = getDeflateSegments();
+			for(int i=0;i<segments.size();i++) {
+				DeflateSegment ds = segments.get(i);
+				ds.writeToOutputStream(os);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return getPath().toFile();
+	}
+	
 	private ByteBuffer getByteBufferOfData() {
 		ByteBuffer bb = getByteBuffer(getFileChannel(), getDataLocation(), getLength());
 		return bb;

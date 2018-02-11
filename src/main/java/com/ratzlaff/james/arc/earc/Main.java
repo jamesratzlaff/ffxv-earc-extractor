@@ -31,10 +31,11 @@ public class Main {
 //			print(earch);
 //			String outputDir = args.length>1?args[1]:"./";
 			FileMetadataPointers pntr=earch.getFilePointersAt(0);
-			DeflateSegment d = pntr.getDeflateSegments().get(0);
-			ByteBuffer bb = d.getCompressedDataAsByteBuffer(null);
-			System.out.println(pntr);
-			HexPrinter.printAsHex(bb,(int)d.getAbsoluteDeflateDataOffset());
+			pntr.write();
+//			DeflateSegment d = pntr.getDeflateSegments().get(0);
+//			ByteBuffer bb = d.getCompressedDataAsByteBuffer(null);
+//			System.out.println(pntr);
+//			HexPrinter.printAsHex(bb,(int)d.getAbsoluteDeflateDataOffset());
 			
 			
 //			earch.getFilePointersAt(0).extractTo(Paths.get(outputDir));

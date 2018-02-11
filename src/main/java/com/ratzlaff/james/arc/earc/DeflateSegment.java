@@ -4,6 +4,7 @@
 package com.ratzlaff.james.arc.earc;
 
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -127,19 +128,41 @@ public class DeflateSegment {
 		return Integer.BYTES << 1;
 	}
 
-	private void writeToOutputStream(OutputStream os) {
+	public void writeToOutputStream(OutputStream os) {
 		Inflater inflater = new Inflater();
 		FileChannel fc = getParentPointer().getFileChannel();
 		ByteBuffer bb = ByteBuffer.allocateDirect(getCompressedSize());
 
 		InflaterOutputStream ios = new InflaterOutputStream(os, inflater, getBufferSize());
-		InflaterInputStream iis = new InflaterInputStream(in, inf, size)
+		try {
+			ios.write(getCompressedDataAsByteArray());
+			
+		} catch (IOException e) {
+			LOG.error(e.getLocalizedMessage(),e);
+		} finally {
+//			close(ios);
+		}
 	
+	}
+	
+	private static void close(Closeable c) {
+		if(c!=null) {
+			try {
+				c.close();
+			} catch (IOException e) {
+				LOG.error(e.getLocalizedMessage(),e);
+			}
+		}
 	}
 	
 	
 	public long getAbsoluteDeflateDataOffset() {
 		return getParentPointer().getDataLocation()+getDeflateDataOffset();
+	}
+	
+	public byte[] getCompressedDataAsByteArray() {
+		byte[] bytes = getCompressedDataAsByteArray(null);
+		return bytes;
 	}
 
 	public byte[] getCompressedDataAsByteArray(byte[] dst) {
