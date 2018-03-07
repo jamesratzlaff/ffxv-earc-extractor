@@ -16,9 +16,9 @@ public class EArchDataExtractor {
 	/**
 	 * 
 	 * @param pointers
-	 * @return a {@link MappedByteBuffer} of the data associated to the {@link FileMetadataPointers metadataPointer} object
+	 * @return a {@link MappedByteBuffer} of the data associated to the {@link EArcEntry metadataPointer} object
 	 */
-	public static MappedByteBuffer getData(FileMetadataPointers pointers) {
+	public static MappedByteBuffer getData(EArcEntry pointers) {
 		MappedByteBuffer mbb = null;
 		try {
 			mbb = pointers.getFileChannel().map(MapMode.READ_ONLY, pointers.getDataLocation(), pointers.getLength());
@@ -29,26 +29,26 @@ public class EArchDataExtractor {
 		}
 		return mbb;
 	}
-	public static ByteBuffer getRawDataAsDirectByteBuffer(FileMetadataPointers pointer) {
+	public static ByteBuffer getRawDataAsDirectByteBuffer(EArcEntry pointer) {
 		return getRawDataAsArrayBackedByteBuffer(pointer, 0,0);
 	}
-	public static ByteBuffer getRawDataAsDirectByteBuffer(FileMetadataPointers pointer, long offsetFromOriginalDataLocation) {
+	public static ByteBuffer getRawDataAsDirectByteBuffer(EArcEntry pointer, long offsetFromOriginalDataLocation) {
 		return getRawDataAsArrayBackedByteBuffer(pointer, offsetFromOriginalDataLocation,0);
 	}
-	public static ByteBuffer getRawDataAsDirectByteBuffer(FileMetadataPointers pointer, long offsetFromOriginalDataLocation, int truncateOrExpand) {
+	public static ByteBuffer getRawDataAsDirectByteBuffer(EArcEntry pointer, long offsetFromOriginalDataLocation, int truncateOrExpand) {
 		long offset = pointer.getDataLocation()+offsetFromOriginalDataLocation;
 		int len = pointer.getLength()+truncateOrExpand;
 		ByteBuffer result = ByteBuffer.allocateDirect(len).order(ByteOrder.nativeOrder());
 		result = getRawDataAsByteBuffer(pointer.getFileChannel(), offset, len, result);
 		return result;
 	}
-	public static ByteBuffer getRawDataAsArrayBackedByteBuffer(FileMetadataPointers pointer) {
+	public static ByteBuffer getRawDataAsArrayBackedByteBuffer(EArcEntry pointer) {
 		return getRawDataAsArrayBackedByteBuffer(pointer, 0,0);
 	}
-	public static ByteBuffer getRawDataAsArrayBackedByteBuffer(FileMetadataPointers pointer, long offsetFromOriginalDataLocation) {
+	public static ByteBuffer getRawDataAsArrayBackedByteBuffer(EArcEntry pointer, long offsetFromOriginalDataLocation) {
 		return getRawDataAsArrayBackedByteBuffer(pointer, offsetFromOriginalDataLocation,0);
 	}
-	public static ByteBuffer getRawDataAsArrayBackedByteBuffer(FileMetadataPointers pointer, long offsetFromOriginalDataLocation, int truncateOrExpand) {
+	public static ByteBuffer getRawDataAsArrayBackedByteBuffer(EArcEntry pointer, long offsetFromOriginalDataLocation, int truncateOrExpand) {
 		long offset = pointer.getDataLocation()+offsetFromOriginalDataLocation;
 		int len = pointer.getLength()+truncateOrExpand;
 		ByteBuffer result = ByteBuffer.allocate(len).order(ByteOrder.nativeOrder());
@@ -80,7 +80,7 @@ public class EArchDataExtractor {
 		
 	}
 
-	private static int getCompressedSize(FileMetadataPointers pointer) {
+	private static int getCompressedSize(EArcEntry pointer) {
 		int compressedSize=0;
 		if(pointer!=null) {
 			if(isZipped(pointer)) {
@@ -120,7 +120,7 @@ public class EArchDataExtractor {
 		return bb;
 	}
 	
-	public static ByteBuffer readDataIntoByteBuffer(FileMetadataPointers pointer) {
+	public static ByteBuffer readDataIntoByteBuffer(EArcEntry pointer) {
 		long offset = pointer.getDataLocation();
 		int len = pointer.getLength();
 		if(isZipped(pointer)) {
@@ -192,7 +192,7 @@ public class EArchDataExtractor {
 		return bytes;
 	}
 	
-	public static ByteArrayInputStream toByteArrayInputStream(FileMetadataPointers pointer) {
+	public static ByteArrayInputStream toByteArrayInputStream(EArcEntry pointer) {
 		ByteBuffer data = getRawDataAsDirectByteBuffer(pointer);
 		Boolean zipped = isZipped(data,pointer.getLength(),pointer.getExtractedSize());
 		if(zipped!=null&&zipped) {
@@ -210,7 +210,7 @@ public class EArchDataExtractor {
 		return bais;
 	}
 	
-	public static byte[] extract(FileMetadataPointers pointer) {
+	public static byte[] extract(EArcEntry pointer) {
 		
 		
 		byte[] reso = new byte[pointer.getExtractedSize()];
@@ -242,7 +242,7 @@ public class EArchDataExtractor {
 
 	
 	
-	public static boolean isZipped(FileMetadataPointers pointer) {
+	public static boolean isZipped(EArcEntry pointer) {
 		ByteBuffer bb = getRawDataAsArrayBackedByteBuffer(pointer, 0, -(pointer.getLength()-9));
 		boolean zipped = isZipped(bb, pointer.getLength(), pointer.getExtractedSize());
 		return zipped;

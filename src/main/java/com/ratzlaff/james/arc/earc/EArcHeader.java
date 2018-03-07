@@ -27,7 +27,7 @@ public class EArcHeader {
 	// 0x20 contains_raw? int (appears to be a flag...all files seem to have either
 	// 1 or 0 --possibly indicating if it contains uncompressed file data anywhere)
 	// 0x24 ? int (always has the value 0x80)
-	private static final FileMetadataPointers[] EMPTY_FILEPOINTERS = new FileMetadataPointers[0];
+	private static final EArcEntry[] EMPTY_FILEPOINTERS = new EArcEntry[0];
 
 	private final transient Supplier<FileChannel> fileChannelSupplier;
 	private final int magic;
@@ -40,7 +40,7 @@ public class EArcHeader {
 	private final int dataTableLocation;
 	private final boolean unknownBoolean;
 	private final long fileSize;
-	private FileMetadataPointers[] metadataPointers;
+	private EArcEntry[] entries;
 
 	public EArcHeader(Supplier<FileChannel> fileChannelSupplier) {
 		this.fileChannelSupplier = fileChannelSupplier;
@@ -207,7 +207,7 @@ public class EArcHeader {
 		result = prime * result + fileCount;
 		result = prime * result + magic;
 		result = prime * result + metadataLocation;
-		result = prime * result + Arrays.hashCode(metadataPointers);
+		result = prime * result + Arrays.hashCode(entries);
 		result = prime * result + minDataBlockSize;
 		result = prime * result + pathTableLocation;
 		result = prime * result + (unknownBoolean ? 1231 : 1237);
@@ -233,7 +233,7 @@ public class EArcHeader {
 			return false;
 		if (metadataLocation != other.metadataLocation)
 			return false;
-		if (!Arrays.equals(metadataPointers, other.metadataPointers))
+		if (!Arrays.equals(entries, other.entries))
 			return false;
 		if (minDataBlockSize != other.minDataBlockSize)
 			return false;
@@ -250,8 +250,8 @@ public class EArcHeader {
 
 	private String generateFileMetadataList() {
 		String result = null;
-		if (this.metadataPointers != null) {
-			String[] asArray = Arrays.stream(this.metadataPointers).filter(fmp -> fmp != null)
+		if (this.entries != null) {
+			String[] asArray = Arrays.stream(this.entries).filter(fmp -> fmp != null)
 					.map(fmp -> fmp.toString()).toArray(size -> new String[size]);
 			String joined = String.join("\n\t", asArray);
 			result = "\n\t" + joined;
@@ -293,56 +293,58 @@ public class EArcHeader {
 	// Files.newByteChannel(Paths.get(""), StandardOpenOption.READ).
 	// }
 
-	private void initializeFilePointerArray() {
-		if (metadataPointers == null) {
+	private void initializeEntriesArray() {
+		if (entries == null) {
 			int numberOfEntries = getFileCount();
 			if (numberOfEntries > -1) {
-				metadataPointers = new FileMetadataPointers[numberOfEntries];
+				entries = new EArcEntry[numberOfEntries];
 			}
 		}
 	}
 
-	public FileMetadataPointers getFilePointersAt(int index) {
-		FileMetadataPointers result = getFilePointersAt(index, null);
+	public EArcEntry getEntryAt(int index) {
+		EArcEntry result = getEntryAt(index, null);
 		return result;
 	}
 
-	public FileMetadataPointers getFilePointersAt(int index, ByteBuffer bb) {
-		initializeFilePointerArray();
-		FileMetadataPointers result = null;
-		if (metadataPointers != null) {
-			result = metadataPointers[index];
+	public EArcEntry getEntryAt(int index, ByteBuffer bb) {
+		initializeEntriesArray();
+		EArcEntry result = null;
+		if (entries != null) {
+			result = entries[index];
 			if (result == null) {
 				try {
 					fileChannelSupplier.get().position(getMetadataLocation() + (40 * index));
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				result = new FileMetadataPointers(fileChannelSupplier, bb);
-				metadataPointers[index] = result;
+				result = new EArcEntry(fileChannelSupplier, bb);
+				entries[index] = result;
 			}
 		}
 		return result;
 	}
 
-	public FileMetadataPointers[] getMetadataPointers() {
-		FileMetadataPointers[] result = EMPTY_FILEPOINTERS;
-		if (metadataPointers == null) {
-			initializeFilePointerArray();
+	public EArcEntry[] getEntries() {
+		EArcEntry[] result = EMPTY_FILEPOINTERS;
+		if (entries == null) {
+			initializeEntriesArray();
 		}
-		if (metadataPointers != null) {
+		if (entries != null) {
 			ByteBuffer bb = ByteBuffer.allocateDirect(40).order(ByteOrder.nativeOrder());
 			for (int i = 0; i < getFileCount(); i++) {
-				getFilePointersAt(i, bb);
+				getEntryAt(i, bb);
 			}
-			result = metadataPointers;
+			result = entries;
 		}
 		return result;
 
 	}
 
-	public void setMetadataPointers(FileMetadataPointers[] metadataPointers) {
-		this.metadataPointers = metadataPointers;
+	public void setEntries(EArcEntry[] metadataPointers) {
+		this.entries = metadataPointers;
 	}
+	
+	
 
 }

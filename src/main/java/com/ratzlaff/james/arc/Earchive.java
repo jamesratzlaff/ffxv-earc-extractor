@@ -9,9 +9,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
 
+import com.ratzlaff.james.arc.earc.ContainerNode;
+import com.ratzlaff.james.arc.earc.EArcEntry;
 import com.ratzlaff.james.arc.earc.EArcHeader;
-import com.ratzlaff.james.arc.earc.FileMetadataPointers;
+import com.ratzlaff.james.arc.earc.LeafNode;
 
 /**
  * 
@@ -137,14 +140,32 @@ public class Earchive implements Closeable{
 		return getHeader().getPathTableLocation();
 	}
 	
-	public FileMetadataPointers getFilePointersAt(int index) {
-		return getHeader().getFilePointersAt(index);
+	public EArcEntry getEntryAt(int index) {
+		return getHeader().getEntryAt(index);
 	}
-	public FileMetadataPointers getFilePointersAt(int index, ByteBuffer bb) {
-		return getHeader().getFilePointersAt(index, bb);
+	public EArcEntry getEntryAt(int index, ByteBuffer bb) {
+		return getHeader().getEntryAt(index, bb);
 	}
-	public FileMetadataPointers[] getMetadataPointers() {
-		return getHeader().getMetadataPointers();
+	public EArcEntry[] getEntries() {
+		return getHeader().getEntries();
+	}
+	
+	
+	public ContainerNode<EArcEntry> getTree(){
+		ContainerNode<EArcEntry> tree = getTree(null);
+		return tree;
+	}
+	
+	public ContainerNode<EArcEntry> getTree(ContainerNode<EArcEntry> root){
+		EArcEntry[] pointers = getEntries();
+		if(root==null) {
+			root = ContainerNode.newRoot();
+		}
+//		Comparator<EArcEntry> cmpa = (a,b)->{return Long.compare(b.getExtractedSize(), a.getExtractedSize());};
+		for(EArcEntry pointer : pointers) {
+			LeafNode.addToAndGetContainer(root, pointer, pointer.getFilePath());
+		}
+		return root;
 	}
 	
 	public EArcHeader getHeader() {

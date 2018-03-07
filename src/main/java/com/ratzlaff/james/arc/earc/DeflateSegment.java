@@ -3,14 +3,12 @@
  */
 package com.ratzlaff.james.arc.earc;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.util.Objects;
 import java.util.zip.Inflater;
@@ -42,15 +40,15 @@ public class DeflateSegment {
 				INITIALIZATION_BUFFER_SIZE);
 		private static final String NULL_PARAM_MESSAGE = String.format(
 				"An DeflateSegmant {0} MUST have a non-null {0} object passed into the constructor.",
-				DeflateSegment.class.getSimpleName(), FileMetadataPointers.class.getSimpleName());
+				DeflateSegment.class.getSimpleName(), EArcEntry.class.getSimpleName());
 	}
 
-	private final FileMetadataPointers parentPointer;
+	private final EArcEntry parentPointer;
 	private final int entryOffset;
 	private final int compressedSize;
 	private final int bufferSize;
 
-	public DeflateSegment(FileMetadataPointers parent) {
+	public DeflateSegment(EArcEntry parent) {
 		Objects.requireNonNull(parent, Messages.NULL_PARAM_MESSAGE);
 		parentPointer = parent;
 
@@ -127,7 +125,14 @@ public class DeflateSegment {
 	protected int getHeaderSize() {
 		return Integer.BYTES << 1;
 	}
-
+	 InputStream readIntoInputStream(InputStream is) {
+		Inflater inflater = new Inflater();
+		FileChannel fc = getParentPointer().getFileChannel();
+		ByteBuffer bb = ByteBuffer.allocateDirect(getCompressedSize());
+		InflaterInputStream iis = new InflaterInputStream(is, inflater, getBufferSize());
+		return iis;
+	
+	}
 	public void writeToOutputStream(OutputStream os) {
 		Inflater inflater = new Inflater();
 		FileChannel fc = getParentPointer().getFileChannel();
@@ -208,6 +213,9 @@ public class DeflateSegment {
 		return getAlignedPadding(getEntryOffset(), getCompressedSize());
 	}
 
+	
+	
+	
 	private static ByteBuffer getHeaderByteBuffer(FileChannel fileChannel) {
 		Objects.requireNonNull(fileChannel);
 		ByteBuffer bb = ByteBuffer.allocateDirect(INITIALIZATION_BUFFER_SIZE).order(ByteOrder.nativeOrder());
@@ -237,13 +245,13 @@ public class DeflateSegment {
 		return bufferSize;
 	}
 
-	protected FileMetadataPointers getParentPointer() {
+	protected EArcEntry getParentPointer() {
 		return this.parentPointer;
 	}
 
 	FileChannel getFileChannel() {
 		FileChannel fileChannel = null;
-		FileMetadataPointers parentPointer = getParentPointer();
+		EArcEntry parentPointer = getParentPointer();
 		if (parentPointer != null) {
 			fileChannel = parentPointer.getFileChannel();
 		}

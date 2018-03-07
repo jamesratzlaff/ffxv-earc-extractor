@@ -1,16 +1,18 @@
 package com.ratzlaff.james.arc.earc;
 
 
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ratzlaff.james.arc.Earchive;
-import com.ratzlaff.james.util.io.HexPrinter;
 
 /**
  * 
@@ -21,7 +23,11 @@ public class Main {
 	private static final transient Logger LOG = LoggerFactory.getLogger(Main.class);
 	
 	public static void main(String[] args) throws Exception {
+		doMain(args);
 		
+	}
+	
+	private static void doMain(String[] args) {
 		if(args.length<1) {
 			printUsage();
 		} else {
@@ -30,7 +36,7 @@ public class Main {
 			Earchive earch = Earchive.create(inputFile);
 //			print(earch);
 //			String outputDir = args.length>1?args[1]:"./";
-			FileMetadataPointers pntr=earch.getFilePointersAt(0);
+			EArcEntry pntr=earch.getEntryAt(0);
 			pntr.write();
 //			DeflateSegment d = pntr.getDeflateSegments().get(0);
 //			ByteBuffer bb = d.getCompressedDataAsByteBuffer(null);
@@ -47,13 +53,34 @@ public class Main {
 		}
 	}
 	
+	
+	private static void testTree(String inputFile) {
+		Earchive earch = Earchive.create(inputFile);
+		EArcEntry[] pointers = earch.getEntries();
+		ContainerNode<EArcEntry> root = ContainerNode.newRoot();
+		Comparator<EArcEntry> cmpa = (a,b)->{return Long.compare(b.getExtractedSize(), a.getExtractedSize());};
+		for(EArcEntry pointer : pointers) {
+			LeafNode<EArcEntry> l = LeafNode.addToAndGetLeaf(root, pointer, pointer.getFilePath());
+			l.setComparator(cmpa);
+		}
+		List<LeafNode<EArcEntry>> asList = root.getLeafNodes().stream().collect(Collectors.toList());
+
+		
+		
+		Collections.sort(asList);
+		System.out.println("======================");
+		for(LeafNode<EArcEntry> pointer : asList) {
+			System.out.println(pointer);
+		}
+	}
+	
 	private static void print(Earchive earch) {
 		populateFilePointers(earch);
 		System.out.println(earch.getHeader());
 	}
 	
 	private static void populateFilePointers(Earchive earch) {
-		Arrays.stream(earch.getMetadataPointers()).forEach(p -> {
+		Arrays.stream(earch.getEntries()).forEach(p -> {
 			p.getDataUrl();
 			p.getFilePath();
 		});
@@ -61,7 +88,7 @@ public class Main {
 	
 	public static void extractAllFiles(Earchive earch, String outputDir) {
 		final Path out = Paths.get(outputDir);
-		Arrays.stream(earch.getMetadataPointers()).forEach(p -> {
+		Arrays.stream(earch.getEntries()).forEach(p -> {
 			p.getDataUrl();
 			p.getFilePath();
 			System.out.println(String.format("extracting \"%s\" to \"%s\"", p.getFilePath(),out));

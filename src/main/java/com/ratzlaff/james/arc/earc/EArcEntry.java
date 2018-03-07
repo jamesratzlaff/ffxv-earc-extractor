@@ -2,9 +2,11 @@ package com.ratzlaff.james.arc.earc;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.zip.InflaterInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +31,8 @@ import org.slf4j.LoggerFactory;
  * @author James Ratzlaff
  *
  */
-public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
-	private static final transient Logger LOG = LoggerFactory.getLogger(FileMetadataPointers.class);
+public class EArcEntry implements Comparable<EArcEntry>{
+	private static final transient Logger LOG = LoggerFactory.getLogger(EArcEntry.class);
 	// meta_data
 	// file_offset meta_data_offset name type desc
 	// 0x30 0x00 unknown? long (unknown)
@@ -58,11 +61,11 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 
 	private final Supplier<FileChannel> fileChannelSupplier;
 
-	public FileMetadataPointers(Supplier<FileChannel> fileChannelSupplier) {
+	public EArcEntry(Supplier<FileChannel> fileChannelSupplier) {
 		this(fileChannelSupplier, null);
 	}
 
-	public FileMetadataPointers(Supplier<FileChannel> fileChannelSupplier, ByteBuffer bb) {
+	public EArcEntry(Supplier<FileChannel> fileChannelSupplier, ByteBuffer bb) {
 		this.fileChannelSupplier = fileChannelSupplier;
 		long checksumToUse = -1;
 		int extractedSizeToUse = -1;
@@ -340,7 +343,7 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		FileMetadataPointers other = (FileMetadataPointers) obj;
+		EArcEntry other = (EArcEntry) obj;
 		if (unknown != other.unknown)
 			return false;
 		if (dataLocation != other.dataLocation)
@@ -458,10 +461,25 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 	}
 
 	
-	public File write() {
+	private void createParentDirs(Path in) {
 		try {
-			Files.createDirectories(getPath().getParent());
-			OutputStream os = Files.newOutputStream(getPath().resolve("./"), StandardOpenOption.CREATE_NEW,StandardOpenOption.APPEND);
+			Files.createDirectories(in.resolve(getPath().getParent()));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	public File write() {
+		return write(null);
+	}
+	public File write(Path in) {
+		if(in==null) {
+			in=Paths.get("./");
+		}
+		OutputStream os = null;
+		try {
+			createParentDirs(in);
+			os = Files.newOutputStream(in.resolve(getPath()), StandardOpenOption.CREATE_NEW,StandardOpenOption.APPEND);
 			List<DeflateSegment> segments = getDeflateSegments();
 			for(int i=0;i<segments.size();i++) {
 				DeflateSegment ds = segments.get(i);
@@ -470,9 +488,152 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			try {
+				os.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-		return getPath().toFile();
+		return in.resolve(getPath()).toFile();
 	}
+	
+	private class RotatingInflateInputStream extends InputStream {
+
+		
+		InputStream delegate;
+		
+		/**
+		 * 
+		 */
+		public RotatingInflateInputStream() {
+			 delegate = Channels.newInputStream(getFileChannel());
+		}
+		
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#read()
+		 */
+		@Override
+		public int read() throws IOException {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#available()
+		 */
+		@Override
+		public int available() throws IOException {
+			// TODO Auto-generated method stub
+			return super.available();
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#close()
+		 */
+		@Override
+		public void close() throws IOException {
+			// TODO Auto-generated method stub
+			super.close();
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#mark(int)
+		 */
+		@Override
+		public synchronized void mark(int arg0) {
+			// TODO Auto-generated method stub
+			super.mark(arg0);
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#markSupported()
+		 */
+		@Override
+		public boolean markSupported() {
+			// TODO Auto-generated method stub
+			return super.markSupported();
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#read(byte[], int, int)
+		 */
+		@Override
+		public int read(byte[] arg0, int arg1, int arg2) throws IOException {
+			// TODO Auto-generated method stub
+			return super.read(arg0, arg1, arg2);
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#read(byte[])
+		 */
+		@Override
+		public int read(byte[] arg0) throws IOException {
+			// TODO Auto-generated method stub
+			return super.read(arg0);
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#readAllBytes()
+		 */
+		@Override
+		public byte[] readAllBytes() throws IOException {
+			// TODO Auto-generated method stub
+			return super.readAllBytes();
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#readNBytes(byte[], int, int)
+		 */
+		@Override
+		public int readNBytes(byte[] arg0, int arg1, int arg2) throws IOException {
+			// TODO Auto-generated method stub
+			return super.readNBytes(arg0, arg1, arg2);
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#reset()
+		 */
+		@Override
+		public synchronized void reset() throws IOException {
+			// TODO Auto-generated method stub
+			super.reset();
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#skip(long)
+		 */
+		@Override
+		public long skip(long arg0) throws IOException {
+			// TODO Auto-generated method stub
+			return super.skip(arg0);
+		}
+
+		/* (non-Javadoc)
+		 * @see java.io.InputStream#transferTo(java.io.OutputStream)
+		 */
+		@Override
+		public long transferTo(OutputStream arg0) throws IOException {
+			// TODO Auto-generated method stub
+			return super.transferTo(arg0);
+		}
+		
+	}
+	
+//	public InputStream getAsInputStream() {
+//		FileChannel fc = getFileChannel();
+//		InputStream is = null;
+//		if(fc!=null) {
+//			is = Channels.newInputStream(fc);
+//			if(isProbablyAZipStream()) {
+//				is=new InflaterInputStream(is);
+//				
+//			} else {
+//				
+//			}
+//		}
+//	}
 	
 	private ByteBuffer getByteBufferOfData() {
 		ByteBuffer bb = getByteBuffer(getFileChannel(), getDataLocation(), getLength());
@@ -606,6 +767,8 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 	private static final byte x9C = (byte) 0x9C;
 	private static final byte xDA = (byte) 0xDA;
 
+	
+	
 	private static boolean byteIsValidSecondInflateByte(byte value) {
 		switch (value) {
 		case x01:
@@ -621,18 +784,18 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 	
 	public static final class Comparators {
 		
-		public static final Comparator<FileMetadataPointers> checksum = (a,b)->{
-			return Comparator.comparingLong(FileMetadataPointers::getUnknown).compare(a, b);
+		public static final Comparator<EArcEntry> checksum = (a,b)->{
+			return Comparator.comparingLong(EArcEntry::getUnknown).compare(a, b);
 		};
 		
-		public static final Comparator<FileMetadataPointers> dataLocation = (a,b)->{
-			return Comparator.comparingLong(FileMetadataPointers::getDataLocation).compare(a, b);
+		public static final Comparator<EArcEntry> dataLocation = (a,b)->{
+			return Comparator.comparingLong(EArcEntry::getDataLocation).compare(a, b);
 		};
-		public static final Comparator<FileMetadataPointers> type = (a,b)->{
-			return Comparator.comparingInt(FileMetadataPointers::getType).thenComparing(checksum).compare(a, b);
+		public static final Comparator<EArcEntry> type = (a,b)->{
+			return Comparator.comparingInt(EArcEntry::getType).thenComparing(checksum).compare(a, b);
 		};
-		private static final Function<FileMetadataPointers,String> urlExrtactor = FileMetadataPointers::getDataUrl;
-		public static final Comparator<FileMetadataPointers> url= (a,b)->{
+		private static final Function<EArcEntry,String> urlExrtactor = EArcEntry::getDataUrl;
+		public static final Comparator<EArcEntry> url= (a,b)->{
 			return Comparator.comparing(urlExrtactor).compare(a,b);
 		};
 		
@@ -646,7 +809,7 @@ public class FileMetadataPointers implements Comparable<FileMetadataPointers>{
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
-	public int compareTo(FileMetadataPointers o) {
+	public int compareTo(EArcEntry o) {
 		return Comparators.dataLocation.compare(this, o);
 	}
 

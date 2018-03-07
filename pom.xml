@@ -21,6 +21,12 @@
 			<artifactId>slf4j-api</artifactId>
 			<version>1.8.0-beta1</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/de.jensd/fontawesomefx -->
+		<dependency>
+			<groupId>de.jensd</groupId>
+			<artifactId>fontawesomefx</artifactId>
+			<version>8.9</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<sourceDirectory>src/main/java</sourceDirectory>
