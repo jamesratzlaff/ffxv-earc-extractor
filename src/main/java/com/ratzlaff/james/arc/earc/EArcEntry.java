@@ -55,6 +55,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	private int dataUrlLocation;
 	private long dataLocation;
 	private long pathLocation;
+	private short obfuscationKey;
 	private List<DeflateSegment> deflateSegments;
 	private String dataUrl;
 	private String path;
@@ -74,6 +75,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		int dataUrlLocationToUse = -1;
 		long dataLocationToUse = -1;
 		long pathLocationToUse = -1;
+		short obfuscationKey = 0;
 		if (this.fileChannelSupplier != null) {
 			if (bb == null) {
 				bb = ByteBuffer.allocateDirect(40).order(ByteOrder.nativeOrder());

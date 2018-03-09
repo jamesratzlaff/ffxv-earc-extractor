@@ -22,6 +22,10 @@ import com.ratzlaff.james.arc.earc.LeafNode;
  *
  */
 public class Earchive implements Closeable{
+	
+	
+	
+	
 	// header
 	// 0x00 magic int (always has the value 0x41465243, 'CRAF' or 'FARC')
 	// 0x04 version(?) int?(always has the value 196628)

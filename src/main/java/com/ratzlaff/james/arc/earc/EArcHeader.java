@@ -27,11 +27,13 @@ public class EArcHeader {
 	// 0x20 contains_raw? int (appears to be a flag...all files seem to have either
 	// 1 or 0 --possibly indicating if it contains uncompressed file data anywhere)
 	// 0x24 ? int (always has the value 0x80)
+	// 0x28 obfuscation key (64-bits)
 	private static final EArcEntry[] EMPTY_FILEPOINTERS = new EArcEntry[0];
 
 	private final transient Supplier<FileChannel> fileChannelSupplier;
 	private final int magic;
 	private final int version;
+	private final boolean obfuscated;
 	private final int fileCount;
 	private final int minDataBlockSize;
 	private final int metadataLocation;
@@ -40,6 +42,7 @@ public class EArcHeader {
 	private final int dataTableLocation;
 	private final boolean unknownBoolean;
 	private final long fileSize;
+	private final long obfuscationKey;
 	private EArcEntry[] entries;
 
 	public EArcHeader(Supplier<FileChannel> fileChannelSupplier) {
@@ -55,6 +58,8 @@ public class EArcHeader {
 		int dataTableLocationToUse = -1;
 		long fileSizeToUse = -1;
 		boolean unknownBooleanToUse = false;
+		boolean obfuscationTruthToUse = false;
+		long obfuscationkeyToUse = 0;
 		FileChannel fc = getFileChannel();
 		if (fc != null) {
 			ByteBuffer bb = ByteBuffer.allocateDirect(64).order(ByteOrder.nativeOrder());
@@ -73,6 +78,12 @@ public class EArcHeader {
 					pathTableLocationToUse = bb.getInt();
 					dataTableLocationToUse = bb.getInt();
 					unknownBooleanToUse = bb.getInt() != 0;
+					obfuscationTruthToUse=(versionToUse&0x80_00_00_00)!=0;
+					if(obfuscationTruthToUse) {
+						bb.getInt();
+						obfuscationkeyToUse=bb.getLong();
+					}
+					
 				}
 
 			} catch (IOException ioe) {
@@ -82,6 +93,7 @@ public class EArcHeader {
 
 		this.magic = magicToUse;
 		this.version = versionToUse;
+		this.obfuscated=(this.version&0x80000000)!=0;
 		this.fileCount = fileCountToUse;
 		this.minDataBlockSize = minDataBlockSizeToUse;
 		this.metadataLocation = metaDataStartToUse;
@@ -90,9 +102,18 @@ public class EArcHeader {
 		this.dataTableLocation = dataTableLocationToUse;
 		this.unknownBoolean = unknownBooleanToUse;
 		this.fileSize = fileSizeToUse;
+		this.obfuscationKey=obfuscationkeyToUse;
 
 	}
 
+	public boolean isObfuscated() {
+		return this.obfuscated;
+	}
+	
+	public long getObfuscationKey() {
+		return this.obfuscationKey;
+	}
+	
 	public int getVersion() {
 		return version;
 	}
