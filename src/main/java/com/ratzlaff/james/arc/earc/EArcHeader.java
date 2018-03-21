@@ -7,6 +7,8 @@ import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.function.Supplier;
 
+import com.ratzlaff.james.arc.earc.obfus.KeyGen;
+
 /**
  * 
  * @author James Ratzlaff
@@ -220,16 +222,24 @@ public class EArcHeader {
 		return fileSize;
 	}
 
+	
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#hashCode()
+	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + dataTableLocation;
+		result = prime * result + Arrays.hashCode(entries);
 		result = prime * result + fileCount;
+		result = prime * result + (int) (fileSize ^ (fileSize >>> 32));
 		result = prime * result + magic;
 		result = prime * result + metadataLocation;
-		result = prime * result + Arrays.hashCode(entries);
 		result = prime * result + minDataBlockSize;
+		result = prime * result + (obfuscated ? 1231 : 1237);
+		result = prime * result + (int) (obfuscationKey ^ (obfuscationKey >>> 32));
 		result = prime * result + pathTableLocation;
 		result = prime * result + (unknownBoolean ? 1231 : 1237);
 		result = prime * result + urlTableLocation;
@@ -237,35 +247,60 @@ public class EArcHeader {
 		return result;
 	}
 
+	/* (non-Javadoc)
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (!(obj instanceof EArcHeader)) {
 			return false;
+		}
 		EArcHeader other = (EArcHeader) obj;
-		if (dataTableLocation != other.dataTableLocation)
+		if (dataTableLocation != other.dataTableLocation) {
 			return false;
-		if (fileCount != other.fileCount)
+		}
+		if (!Arrays.equals(entries, other.entries)) {
 			return false;
-		if (magic != other.magic)
+		}
+		if (fileCount != other.fileCount) {
 			return false;
-		if (metadataLocation != other.metadataLocation)
+		}
+		if (fileSize != other.fileSize) {
 			return false;
-		if (!Arrays.equals(entries, other.entries))
+		}
+		if (magic != other.magic) {
 			return false;
-		if (minDataBlockSize != other.minDataBlockSize)
+		}
+		if (metadataLocation != other.metadataLocation) {
 			return false;
-		if (pathTableLocation != other.pathTableLocation)
+		}
+		if (minDataBlockSize != other.minDataBlockSize) {
 			return false;
-		if (unknownBoolean != other.unknownBoolean)
+		}
+		if (obfuscated != other.obfuscated) {
 			return false;
-		if (urlTableLocation != other.urlTableLocation)
+		}
+		if (obfuscationKey != other.obfuscationKey) {
 			return false;
-		if (version != other.version)
+		}
+		if (pathTableLocation != other.pathTableLocation) {
 			return false;
+		}
+		if (unknownBoolean != other.unknownBoolean) {
+			return false;
+		}
+		if (urlTableLocation != other.urlTableLocation) {
+			return false;
+		}
+		if (version != other.version) {
+			return false;
+		}
 		return true;
 	}
 
@@ -298,6 +333,8 @@ public class EArcHeader {
 		builder.append(dataTableLocation);
 		builder.append(", uknownBoolean=");
 		builder.append(unknownBoolean);
+		builder.append(",obfuscated?=").append(obfuscated);
+		builder.append(",obfuscation key=").append(String.format("0x%016x", getObfuscationKey()));
 		String fileList = generateFileMetadataList();
 		if (fileList != null) {
 			builder.append(", filemetadata=");
@@ -328,7 +365,11 @@ public class EArcHeader {
 		return result;
 	}
 
+	
 	public EArcEntry getEntryAt(int index, ByteBuffer bb) {
+		return getEntryAt(index, bb, null);
+	}
+	public EArcEntry getEntryAt(int index, ByteBuffer bb, KeyGen kg) {
 		initializeEntriesArray();
 		EArcEntry result = null;
 		if (entries != null) {
@@ -339,7 +380,7 @@ public class EArcHeader {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				result = new EArcEntry(fileChannelSupplier, bb);
+				result = new EArcEntry(fileChannelSupplier, bb, kg);
 				entries[index] = result;
 			}
 		}
@@ -352,9 +393,10 @@ public class EArcHeader {
 			initializeEntriesArray();
 		}
 		if (entries != null) {
+			KeyGen kg = new KeyGen(getObfuscationKey());
 			ByteBuffer bb = ByteBuffer.allocateDirect(40).order(ByteOrder.nativeOrder());
 			for (int i = 0; i < getFileCount(); i++) {
-				getEntryAt(i, bb);
+				getEntryAt(i, bb, kg);
 			}
 			result = entries;
 		}

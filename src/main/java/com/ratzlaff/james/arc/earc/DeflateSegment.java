@@ -18,6 +18,8 @@ import java.util.zip.InflaterOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ratzlaff.james.arc.earc.obfus.DeflateDeobfuscator;
+
 /**
  * 
  * 
@@ -47,6 +49,7 @@ public class DeflateSegment {
 	private final int entryOffset;
 	private final int compressedSize;
 	private final int bufferSize;
+	private short deflateKey;
 
 	public DeflateSegment(EArcEntry parent) {
 		Objects.requireNonNull(parent, Messages.NULL_PARAM_MESSAGE);
@@ -60,12 +63,12 @@ public class DeflateSegment {
 		ByteBuffer bb = getHeaderByteBuffer(fc);
 
 		int compressedSizeToUse = 0;
-		compressedSizeToUse = bb.getInt();
+		compressedSizeToUse = bb.getInt();//LEFT-SIDE Value
 		this.compressedSize = compressedSizeToUse;
 		LOG.info(Messages.COMPRESSED_SIZE, getCompressedSize(), getEntryOffset());
 
 		int bufferSizeToUse = 0;
-		bufferSizeToUse = bb.getInt();
+		bufferSizeToUse = bb.getInt();//RIGHT-SIDE Value
 		this.bufferSize = bufferSizeToUse;
 		LOG.info(Messages.BUFFER_SIZE, getBufferSize());
 		incrementPosition(fc, getCompressedSize());
@@ -73,7 +76,11 @@ public class DeflateSegment {
 
 		LOG.info(Messages.INFLATE_START, getDeflateDataOffset());
 		LOG.info(Messages.ALIGNMENT_PADDING, getEndPadding(), Integer.BYTES);
-
+		short keyToUse = 0;
+		if(parentPointer!=null&&parentPointer.getDeflateSegments().isEmpty()) {
+			keyToUse=parentPointer.getDeflateKey();
+		}
+		this.deflateKey=keyToUse;
 	}
 
 	private static FileChannel incrementPosition(FileChannel fc, int delta) {
@@ -236,13 +243,21 @@ public class DeflateSegment {
 		}
 		return bb;
 	}
+	
+	public int getRawCompressedSizeValue() {
+		return compressedSize;
+	}
+	
+	public int getRawBufferSizeValue() {
+		return bufferSize;
+	}
 
 	public int getCompressedSize() {
-		return compressedSize;
+		return DeflateDeobfuscator.DEFAULT_INSTANCE.getToggledObfuscationForLeftValue(getDeflateKey(), getRawCompressedSizeValue());
 	}
 
 	public int getBufferSize() {
-		return bufferSize;
+		return DeflateDeobfuscator.DEFAULT_INSTANCE.getToggledObfuscationForRightValue(getDeflateKey(), getRawBufferSizeValue());
 	}
 
 	protected EArcEntry getParentPointer() {
@@ -256,6 +271,10 @@ public class DeflateSegment {
 			fileChannel = parentPointer.getFileChannel();
 		}
 		return fileChannel;
+	}
+	
+	public short getDeflateKey() {
+		return deflateKey;
 	}
 
 	/*

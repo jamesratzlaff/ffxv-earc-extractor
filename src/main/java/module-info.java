@@ -12,5 +12,6 @@ module com.ratzlaff.james.arc.earc {
 	exports com.ratzlaff.james.arc;
 	exports com.ratzlaff.james.arc.earc;
 	exports com.ratzlaff.james.arc.earc.ui;
+	exports com.ratzlaff.james.arc.earc.obfus;
 	
 }

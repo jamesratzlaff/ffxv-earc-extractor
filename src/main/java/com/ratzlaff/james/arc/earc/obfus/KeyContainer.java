@@ -18,11 +18,11 @@ interface KeyContainer {
 	long getMorphingKey();
 	
 	default int getDeobfuscatedLengthInArchive(int obfuscated) {
-		return (int) ((int) (getLengthKey()) ^ obfuscated);
+		return ((int) (getLengthKey() ^ obfuscated));
 	}
 
 	default int getDeobfuscatedSizeOnDisk(int obfuscated) {
-		return (int) ((int) (getLengthKey() >> 0x20)) ^ obfuscated;
+		return ((int) (getLengthKey() >> 0x20)) ^ obfuscated;
 	}
 	
 	default long getDeobfiscatedLengthInArchiveAndSizeOnDisk(long bigEndianLongOfBothValuesReadAtTheSameTime) {

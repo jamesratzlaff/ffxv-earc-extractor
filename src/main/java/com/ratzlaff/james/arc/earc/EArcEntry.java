@@ -21,10 +21,12 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.zip.InflaterInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.ratzlaff.james.arc.earc.obfus.EntryUnlockKeys;
+import com.ratzlaff.james.arc.earc.obfus.KeyGen;
 
 /**
  * 
@@ -35,7 +37,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	private static final transient Logger LOG = LoggerFactory.getLogger(EArcEntry.class);
 	// meta_data
 	// file_offset meta_data_offset name type desc
-	// 0x30 0x00 unknown? long (unknown)
+	// 0x30 0x00 unknown? long (unknown) //update 3/6/2018 this is probably the transient key
 	// 0x38 0x08 extracted_size int (basically the uncompressed size, if it is
 	// indeed uncompressed)
 	// 0x4C 0x0C data_length? int (seems to need to be divisible by 8. The needed
@@ -48,14 +50,15 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	// 0x58 0x18 data_loc long (location of the actual file)
 	// 0x5C 0x1C path_loc long (location of the file path string)
 	public static final Charset DEFAULT_EARC_CHARSET = Charset.forName("UTF-8");
-	private long unknown;
+	private long transientKey;
 	private int extractedSize;
 	private int length;
 	private int type;
 	private int dataUrlLocation;
 	private long dataLocation;
 	private long pathLocation;
-	private short obfuscationKey;
+	private short deflateKey;
+	private EntryUnlockKeys unlockKeys;
 	private List<DeflateSegment> deflateSegments;
 	private String dataUrl;
 	private String path;
@@ -66,16 +69,17 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		this(fileChannelSupplier, null);
 	}
 
-	public EArcEntry(Supplier<FileChannel> fileChannelSupplier, ByteBuffer bb) {
+	public EArcEntry(Supplier<FileChannel> fileChannelSupplier, ByteBuffer bb, KeyGen keyGen) {
 		this.fileChannelSupplier = fileChannelSupplier;
-		long checksumToUse = -1;
+		long transientObfuscationKey = -1;
 		int extractedSizeToUse = -1;
 		int lengthToUse = -1;
 		int typeToUse = -1;
 		int dataUrlLocationToUse = -1;
 		long dataLocationToUse = -1;
 		long pathLocationToUse = -1;
-		short obfuscationKey = 0;
+		short deflateKeyToUse=0;
+		
 		if (this.fileChannelSupplier != null) {
 			if (bb == null) {
 				bb = ByteBuffer.allocateDirect(40).order(ByteOrder.nativeOrder());
@@ -84,28 +88,36 @@ public class EArcEntry implements Comparable<EArcEntry>{
 			try {
 				int bytesRead = fc.read(bb);
 				bb.flip();
-				checksumToUse = bb.getLong();
+				transientObfuscationKey = bb.getLong();
 				extractedSizeToUse = bb.getInt();
 				lengthToUse = bb.getInt();
 				typeToUse = bb.getInt();
 				dataUrlLocationToUse = bb.getInt();
 				dataLocationToUse = bb.getLong();
-				pathLocationToUse = bb.getLong();
+				pathLocationToUse = bb.getInt();
+				bb.getShort();
+				deflateKeyToUse = bb.getShort();
 				bb.flip();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		unknown = checksumToUse;
+		transientKey = transientObfuscationKey;
 		extractedSize = extractedSizeToUse;
 		length = lengthToUse;
 		type = typeToUse;
 		dataUrlLocation = dataUrlLocationToUse;
 		dataLocation = dataLocationToUse;
 		pathLocation = pathLocationToUse;
+		deflateKey=deflateKeyToUse;
+		unlockKeys = keyGen!=null?keyGen.setTransientKeyAndGetEntryUnlockKey(transientKey):KeyGen.createDefaultEntryKeys();
+		
 
 	}
-
+	public EArcEntry(Supplier<FileChannel> fileChannelSupplier, ByteBuffer bb) {
+		this(fileChannelSupplier, bb, null);
+	}
+	
 	public static String readString(FileChannel fc, int offset, ByteBuffer dst) {
 		String result = null;
 		// if(offset%8!=0) {
@@ -156,6 +168,10 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		return result;
 	}
 
+	public short getDeflateKey() {
+		return this.deflateKey;
+	}
+
 	public static String readString(String str, int offset) {
 		ByteBuffer bb = ByteBuffer.allocateDirect(1024);
 		String result = readString(str, offset, bb);
@@ -178,12 +194,12 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	 *         {@link #getType() type} definitely seems to have something to do with
 	 *         this number
 	 */
-	public long getUnknown() {
-		return unknown;
+	public long getTransientKey() {
+		return transientKey;
 	}
 
-	public void setChecksum(long checksum) {
-		this.unknown = checksum;
+	public void setTransientKey(long checksum) {
+		this.transientKey = checksum;
 	}
 
 	/**
@@ -191,7 +207,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	 * @return the extracted size (in bytes) of the file
 	 */
 	public int getExtractedSize() {
-		return extractedSize;
+		return getUnlockKeys().getSizeOnDiskFrom(extractedSize);
 	}
 
 	public void setExtractedSize(int extractedSize) {
@@ -203,7 +219,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	 * @return the length of the data entry in the archive
 	 */
 	public int getLength() {
-		return length;
+		return getUnlockKeys().getEntryLengthFrom(length);
 	}
 
 	public void setLength(int length) {
@@ -272,9 +288,13 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		String result = getFilePath(null);
 		return result;
 	}
+	
+	protected EntryUnlockKeys getUnlockKeys() {
+		return unlockKeys;
+	}
 
 	public long getDataLocation() {
-		return dataLocation;
+		return getUnlockKeys().getDataOffsetFrom(dataLocation);
 	}
 
 	public void setDataLocation(long dataLocation) {
@@ -327,7 +347,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (int) (unknown ^ (unknown >>> 32));
+		result = prime * result + (int) (transientKey ^ (transientKey >>> 32));
 		result = prime * result + (int) (dataLocation ^ (dataLocation >>> 32));
 		result = prime * result + dataUrlLocation;
 		result = prime * result + extractedSize;
@@ -346,7 +366,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		if (getClass() != obj.getClass())
 			return false;
 		EArcEntry other = (EArcEntry) obj;
-		if (unknown != other.unknown)
+		if (transientKey != other.transientKey)
 			return false;
 		if (dataLocation != other.dataLocation)
 			return false;
@@ -401,18 +421,18 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		builder.append("FileMetadataPointers [unknown=");
-		builder.append(divvy(toHexArray(unknown), 2, " "));
-		builder.append("(").append(unknown).append(")");
+		builder.append(divvy(toHexArray(transientKey), 2, " "));
+		builder.append("(").append(transientKey).append(")");
 		builder.append(", extractedSize=");
-		builder.append(extractedSize);
+		builder.append(getExtractedSize());
 		builder.append(", length=");
-		builder.append(length);
+		builder.append(getLength());
 		builder.append(", type=");
 		builder.append(type);
 		builder.append(", dataUrlLocation=");
 		builder.append(dataUrlLocation);
 		builder.append(", dataLocation=");
-		builder.append(dataLocation);
+		builder.append(getDataLocation());
 		builder.append(", pathLocation=");
 		builder.append(pathLocation);
 		if (dataUrl != null) {
@@ -787,7 +807,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	public static final class Comparators {
 		
 		public static final Comparator<EArcEntry> checksum = (a,b)->{
-			return Comparator.comparingLong(EArcEntry::getUnknown).compare(a, b);
+			return Comparator.comparingLong(EArcEntry::getTransientKey).compare(a, b);
 		};
 		
 		public static final Comparator<EArcEntry> dataLocation = (a,b)->{

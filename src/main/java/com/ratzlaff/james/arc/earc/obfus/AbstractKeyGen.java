@@ -39,7 +39,15 @@ public abstract class AbstractKeyGen extends BaseKeyGen implements KeyGenerator{
 		beforeSettingTransientKey(transientKey);
 		this.transientKey = transientKey;
 		afterSettingTransientKey();
-
+	}
+	
+	public EntryUnlockKeys setTransientKeyAndGetEntryUnlockKey(long transientKey) {
+		setTransientKey(transientKey);
+		return getEntryUnlockKeys();
+	} 
+	
+	public EntryUnlockKeys getEntryUnlockKeys() {
+		return new EntryUnlockKeysImpl(getLengthKey(), getOffsetKey());
 	}
 
 	public long getOffsetKey() {

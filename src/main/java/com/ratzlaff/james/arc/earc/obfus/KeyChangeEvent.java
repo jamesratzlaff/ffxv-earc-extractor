@@ -124,7 +124,7 @@ public class KeyChangeEvent implements Serializable, Timestamped<KeyChangeEvent>
 		String asStr = timestampFormatter==null?String.valueOf(tsValue):timestampFormatter.apply(tsValue);
 		char[] padding = new char[maxNameLength-type.name().length()];
 		Arrays.fill(padding, ' ');
-		StringBuilder sb = new StringBuilder(type.name()).append(padding).append("@").append(asStr).append("\t[").append("0x").append(String.format("%016x",oldValue).toUpperCase()).append("\t->\t").append("0x").append(String.format("0x%016x",value).toUpperCase()).append("]");
+		StringBuilder sb = new StringBuilder(type.name()).append(padding).append("@").append(asStr).append("\t[").append("0x").append(String.format("%016x",oldValue).toUpperCase()).append("\t->\t").append("0x").append(String.format("%016x",value).toUpperCase()).append("]");
 		return sb.toString();
 	}
 	

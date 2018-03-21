@@ -17,6 +17,10 @@ import com.ratzlaff.james.arc.earc.EArcHeader;
 public class KeyGen extends AbstractKeyGen {
 
 
+	public static EntryUnlockKeys createDefaultEntryKeys() {
+		return new EntryUnlockKeysImpl();
+	}
+	
 	public KeyGen(long minorKey, long majorKey, long parentKey) {
 		super(minorKey, majorKey, parentKey);
 //		setMinorKey( minorKey);
