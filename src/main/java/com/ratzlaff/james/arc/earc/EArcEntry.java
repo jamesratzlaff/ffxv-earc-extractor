@@ -62,6 +62,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 	private List<DeflateSegment> deflateSegments;
 	private String dataUrl;
 	private String path;
+	private boolean obfuscated;
 
 	private final Supplier<FileChannel> fileChannelSupplier;
 
@@ -79,7 +80,10 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		long dataLocationToUse = -1;
 		long pathLocationToUse = -1;
 		short deflateKeyToUse=0;
-		
+		boolean obfuscationTruth=false;
+		if(keyGen!=null) {
+			obfuscationTruth=true;
+		}
 		if (this.fileChannelSupplier != null) {
 			if (bb == null) {
 				bb = ByteBuffer.allocateDirect(40).order(ByteOrder.nativeOrder());
@@ -110,7 +114,8 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		dataLocation = dataLocationToUse;
 		pathLocation = pathLocationToUse;
 		deflateKey=deflateKeyToUse;
-		unlockKeys = keyGen!=null?keyGen.setTransientKeyAndGetEntryUnlockKey(transientKey):KeyGen.createDefaultEntryKeys();
+		obfuscated=obfuscationTruth;
+		unlockKeys = obfuscated?keyGen.setTransientKeyAndGetEntryUnlockKey(transientKey):KeyGen.createDefaultEntryKeys();
 		
 
 	}
@@ -163,6 +168,10 @@ public class EArcEntry implements Comparable<EArcEntry>{
 		return result;
 	}
 
+	boolean isObfuscated(){
+		return obfuscated; 
+	}
+	
 	public static String readString(String str, int offset, ByteBuffer dst) {
 		String result = readString(Paths.get(str), offset, dst);
 		return result;
@@ -730,7 +739,7 @@ public class EArcEntry implements Comparable<EArcEntry>{
 						"The second inflate header byte is not correct. Expected %x, %x, %x, or %x but was given %x",
 						x01, x5A, x9C, xDA, secondByte);
 			}
-			zipped = compressAndDeflateAreLegit && firstByteIsCorrect && secondByteIsCorrect;
+			zipped = (compressAndDeflateAreLegit||deflateKey!=0) && firstByteIsCorrect && secondByteIsCorrect;
 		}
 		return zipped;
 	}

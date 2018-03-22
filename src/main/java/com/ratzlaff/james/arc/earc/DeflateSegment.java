@@ -33,11 +33,11 @@ public class DeflateSegment {
 	private static final int INITIALIZATION_BUFFER_SIZE = Integer.BYTES << 1;
 
 	private static class Messages {
-		private static final String REL_OFFSET = "has a relative offset of {0} and an absolute offset of {1}";
-		private static final String INFLATE_START = "deflate data starts at relative offset {0}";
-		private static final String ALIGNMENT_PADDING = "has {0} bytes of padding to align every {1} bytes";
-		private static final String COMPRESSED_SIZE = "compressed size of {0} bytes";
-		private static final String BUFFER_SIZE = "buffer size of {0} bytes";
+		private static final String REL_OFFSET = "has a relative offset of {} and an absolute offset of {}";
+		private static final String INFLATE_START = "deflate data starts at relative offset {}";
+		private static final String ALIGNMENT_PADDING = "has {} bytes of padding to align every {} bytes";
+		private static final String COMPRESSED_SIZE = "compressed size of {} bytes";
+		private static final String BUFFER_SIZE = "buffer size of {} bytes";
 		private static final String BUFFER_SUCCESS = String.format("Successfully read %d bytes apply to entities",
 				INITIALIZATION_BUFFER_SIZE);
 		private static final String NULL_PARAM_MESSAGE = String.format(
@@ -49,12 +49,16 @@ public class DeflateSegment {
 	private final int entryOffset;
 	private final int compressedSize;
 	private final int bufferSize;
-	private short deflateKey;
+	private Short deflateKey;
 
 	public DeflateSegment(EArcEntry parent) {
 		Objects.requireNonNull(parent, Messages.NULL_PARAM_MESSAGE);
 		parentPointer = parent;
-
+		Short keyToUse = null;
+		if(parentPointer!=null&&parentPointer.isObfuscated()&&parentPointer.getDeflateSegments().isEmpty()) {
+			keyToUse=parentPointer.getDeflateKey();
+		}
+		this.deflateKey=keyToUse;
 		FileChannel fc = getFileChannel();
 		int entryOffsetToUse = (int) (getPosition(fc) - getParentPointer().getDataLocation());
 		this.entryOffset = entryOffsetToUse;
@@ -76,11 +80,7 @@ public class DeflateSegment {
 
 		LOG.info(Messages.INFLATE_START, getDeflateDataOffset());
 		LOG.info(Messages.ALIGNMENT_PADDING, getEndPadding(), Integer.BYTES);
-		short keyToUse = 0;
-		if(parentPointer!=null&&parentPointer.getDeflateSegments().isEmpty()) {
-			keyToUse=parentPointer.getDeflateKey();
-		}
-		this.deflateKey=keyToUse;
+		
 	}
 
 	private static FileChannel incrementPosition(FileChannel fc, int delta) {
@@ -253,11 +253,11 @@ public class DeflateSegment {
 	}
 
 	public int getCompressedSize() {
-		return DeflateDeobfuscator.DEFAULT_INSTANCE.getToggledObfuscationForLeftValue(getDeflateKey(), getRawCompressedSizeValue());
+		return deflateKey!=null?DeflateDeobfuscator.DEFAULT_INSTANCE.getToggledObfuscationForLeftValue(getDeflateKey().shortValue(), getRawCompressedSizeValue()):getRawCompressedSizeValue();
 	}
 
 	public int getBufferSize() {
-		return DeflateDeobfuscator.DEFAULT_INSTANCE.getToggledObfuscationForRightValue(getDeflateKey(), getRawBufferSizeValue());
+		return deflateKey!=null?DeflateDeobfuscator.DEFAULT_INSTANCE.getToggledObfuscationForRightValue(getDeflateKey().shortValue(), getRawBufferSizeValue()):getRawBufferSizeValue();
 	}
 
 	protected EArcEntry getParentPointer() {
@@ -273,7 +273,7 @@ public class DeflateSegment {
 		return fileChannel;
 	}
 	
-	public short getDeflateKey() {
+	public Short getDeflateKey() {
 		return deflateKey;
 	}
 

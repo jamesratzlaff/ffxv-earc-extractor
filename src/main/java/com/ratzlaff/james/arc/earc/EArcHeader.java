@@ -393,7 +393,7 @@ public class EArcHeader {
 			initializeEntriesArray();
 		}
 		if (entries != null) {
-			KeyGen kg = new KeyGen(getObfuscationKey());
+			KeyGen kg = isObfuscated()?new KeyGen(getObfuscationKey()):null;
 			ByteBuffer bb = ByteBuffer.allocateDirect(40).order(ByteOrder.nativeOrder());
 			for (int i = 0; i < getFileCount(); i++) {
 				getEntryAt(i, bb, kg);

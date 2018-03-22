@@ -16,7 +16,7 @@ import com.ratzlaff.james.util.io.BigHex;
  */
 public class DeflateDeobfuscator {
 
-	public static final DeflateDeobfuscator DEFAULT_INSTANCE = new DeflateDeobfuscator();
+	
 	
 	public static final Pattern hex = Pattern.compile("(?:0[xX])*([0-9a-fA-F]+)[lLhH]?");
 	private static final Pattern regularNumber = Pattern.compile("([\\-]?[0-9]+)");
@@ -247,5 +247,5 @@ public class DeflateDeobfuscator {
 		StringBuilder sb = new StringBuilder(String.format("/*Deflate deobfuscator*/{'greaterKey':%x,'lesserKey':%x}",greaterKey,lesserKey));
 		return sb.toString();
 	}
-
+	public static final DeflateDeobfuscator DEFAULT_INSTANCE = new DeflateDeobfuscator();
 }
